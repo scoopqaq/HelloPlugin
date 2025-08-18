@@ -6,6 +6,10 @@ import logging
 from pkg.plugin.context import register, handler, BasePlugin, EventContext
 from pkg.plugin.events import PersonNormalMessageReceived
 
+# TODO: 请根据你的框架确认 MessageChain 的正确导入路径
+# 它可能位于 pkg.models.message, pkg.message.chain 等地方
+from pkg.models.message import MessageChain 
+
 # --- 1. 配置信息 ---
 # ====================================================================
 OPEN_KFID = "wk7m0ECAAAJIe_OYgcBEt5hGxXFrbqUA"  # 你的企业微信客服账号ID
@@ -14,7 +18,7 @@ WECOM_SECRET = "iYNQBMi9vjFQsN6YM3opk1yCVdKfr_pGK_NVHkaBLJE" # 你的客服应�
 # ====================================================================
 
 
-# --- 2. Access Token 管理模块 (保持不变) ---
+# --- 2. Access Token 管理模块 ---
 access_token_cache = { "token": None, "expires_at": 0 }
 
 async def get_access_token():
@@ -42,25 +46,19 @@ async def get_access_token():
         return None
 
 
-# --- 3. 插件主逻辑 (全新实现) ---
-@register(name="TransferToAgentFinal", description="通过主动查询会话状态，实现精准的AI介入和转人工", version="2.0", author="YourName")
+# --- 3. 插件主逻辑 ---
+@register(name="TransferToAgentFinal", description="通过主动查询会话状态，实现精准的AI介入和转人工", version="2.1", author="YourName")
 class TransferToAgentPlugin(BasePlugin):
 
     async def get_wecom_service_state(self, user_id: str):
-        """
-        调用API，主动查询指定用户的当前会话状态。
-        返回 service_state 值，如果查询失败则返回 -1。
-        """
+        """调用API，主动查询指定用户的当前会话状态。返回 service_state 值，查询失败则返回 -1。"""
         token = await get_access_token()
         if not token:
             self.ap.logger.error("查询会话状态失败：无法获取 access_token。")
             return -1
 
         api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/get?access_token={token}"
-        payload = {
-            "open_kfid": OPEN_KFID,
-            "external_userid": user_id
-        }
+        payload = {"open_kfid": OPEN_KFID, "external_userid": user_id}
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(api_url, json=payload)
@@ -80,7 +78,7 @@ class TransferToAgentPlugin(BasePlugin):
 
     @handler(PersonNormalMessageReceived)
     async def handle_message(self, ctx: EventContext):
-        # 步骤 1: 获取并格式化用户ID (同之前)
+        # 步骤 1: 获取并格式化用户ID
         try:
             original_user_id = ctx.event.sender_id
             wm_start_index = original_user_id.find("wm")
@@ -98,7 +96,6 @@ class TransferToAgentPlugin(BasePlugin):
         # 步骤 2: 主动查询用户的实时会话状态
         current_service_state = await self.get_wecom_service_state(formatted_user_id)
         
-        # 定义哪些状态下AI不应该介入
         human_service_states = [2, 3]  # 2:待接入池排队中, 3:由人工接待
         
         if current_service_state in human_service_states:
@@ -107,39 +104,60 @@ class TransferToAgentPlugin(BasePlugin):
             return
         
         # 步骤 3: 检查转人工意图
-        # 只有在AI应该介入的状态下（如 0, 1, 4），才检查是否要转人工
         msg = ctx.event.text_message
         if "转人工" in msg or "找客服" in msg:
             self.ap.logger.info(f"用户 '{formatted_user_id}' 请求转人工，执行转接...")
             await self.transfer_to_human(ctx, formatted_user_id)
         
-        # 如果不是转人工，也不属于人工状态，则什么都不做，消息会自然流向AI插件
-
     async def transfer_to_human(self, ctx: EventContext, user_id: str):
-        """将用户会话转接给人工（此函数基本不变）"""
-        ctx.add_return("reply", ["正在为您转接人工客服，请稍候..."])
+        """将用户会话转接给人工，并使用 ctx.send_message 发送提示。"""
+        # 步骤 a: 使用你提供的API主动发送提示消息
+        try:
+            # 根据事件类型 PersonNormalMessageReceived, target_type 很可能是 'person'
+            await ctx.send_message(
+                target_type='person', 
+                target_id=user_id, 
+                message_chain=MessageChain("正在为您转接人工客服，请稍候...")
+            )
+            self.ap.logger.info(f"已向用户 '{user_id}' 主动发送转接提示。")
+        except Exception as e:
+            self.ap.logger.error(f"主动发送消息失败: {e}，请检查API用法。")
+
+        # 步骤 b: 获取access_token
         token = await get_access_token()
         if not token:
-            # ... 错误处理 ...
+            self.ap.logger.error(f"转人工失败：用户'{user_id}'无法获取access_token。")
+            await ctx.send_message(
+                target_type='person', 
+                target_id=user_id, 
+                message_chain=MessageChain("抱歉，系统繁忙，转接失败了，请稍后重试。")
+            )
             ctx.prevent_default()
             return
 
+        # 步骤 c & d: 调用API并处理结果
         api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token={token}"
-        payload = { "open_kfid": OPEN_KFID, "external_userid": user_id, "service_state": 2 }
+        payload = {"open_kfid": OPEN_KFID, "external_userid": user_id, "service_state": 2}
         try:
-            # ... 发起请求 ...
             async with httpx.AsyncClient() as client:
-                # ... post ...
                 response = await client.post(api_url, json=payload)
                 result = response.json()
-
             if result.get("errcode") == 0:
                 self.ap.logger.info(f"成功将用户 '{user_id}' 转入待接入池。")
             else:
-                # ... 错误处理 ...
                 self.ap.logger.error(f"转人工API失败: {result}")
+                await ctx.send_message(
+                    target_type='person', 
+                    target_id=user_id, 
+                    message_chain=MessageChain(f"抱歉，转接失败了({result.get('errmsg', '')})。")
+                )
         except Exception as e:
-            # ... 异常处理 ...
             self.ap.logger.error(f"转人工请求异常: {e}")
+            await ctx.send_message(
+                target_type='person', 
+                target_id=user_id, 
+                message_chain=MessageChain("抱歉，转接时发生网络错误，请稍后重试。")
+            )
         finally:
+            # 步骤 e: 最终拦截
             ctx.prevent_default()
