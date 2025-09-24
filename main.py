@@ -126,3 +126,4 @@ class TransferImgPlugin(BasePlugin):
             await ctx.reply(MessageChain([Plain(text)]))
             await transfer_to_human(ctx, uid)
             return
+        #test
