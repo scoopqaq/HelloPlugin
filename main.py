@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
 import httpx
 import time
 import logging
@@ -22,12 +21,7 @@ WECOM_SECRET = "iYNQBMi9vjFQsN6YM3opk1yCVdKfr_pGK_NVHkaBLJE"
 access_token_cache = { "token": None, "expires_at": 0 }
 
 async def get_access_token():
-async def get_access_token():
     now = int(time.time())
-    if access_token_cache["token"] and access_token_cache["expires_at"] > now:
-        return access_token_cache["token"]
-    
-    logging.info("Access Token: Fetching new token...")
     if access_token_cache["token"] and access_token_cache["expires_at"] > now:
         return access_token_cache["token"]
     
@@ -38,15 +32,7 @@ async def get_access_token():
             response = await client.get(url)
             response.raise_for_status()
             data = response.json()
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            data = response.json()
         if data.get("errcode") == 0:
-            token = data["access_token"]
-            access_token_cache["token"] = token
-            access_token_cache["expires_at"] = now + 7000
-            return token
             token = data["access_token"]
             access_token_cache["token"] = token
             access_token_cache["expires_at"] = now + 7000
@@ -54,10 +40,7 @@ async def get_access_token():
         else:
             logging.error(f"Access Token: Failed to get token. Response: {data}")
             return None
-            logging.error(f"Access Token: Failed to get token. Response: {data}")
-            return None
     except Exception as e:
-        logging.error(f"Access Token: Exception occurred. {e}")
         logging.error(f"Access Token: Exception occurred. {e}")
         return None
 
@@ -85,38 +68,7 @@ class TransferToAgentPlugin(BasePlugin):
                 service_state = result.get("service_state")
                 self.ap.logger.info(f"成功查询到用户 '{user_id}' 的会话状态为: {service_state}")
                 return service_state
-
-
-# --- 3. 插件主逻辑 ---
-@register(name="TransferToAgentFinal", description="通过主动查询会话状态，实现精准的AI介入和转人工", version="3.0", author="YourName")
-class TransferToAgentPlugin(BasePlugin):
-
-    async def get_wecom_service_state(self, user_id: str):
-        """调用API，主动查询指定用户的当前会话状态。"""
-        token = await get_access_token()
-        if not token:
-            self.ap.logger.error("查询会话状态失败：无法获取 access_token。")
-            return -1
-
-        api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/get?access_token={token}"
-        payload = {"open_kfid": OPEN_KFID, "external_userid": user_id}
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(api_url, json=payload)
-                response.raise_for_status()
-                result = response.json()
-            
-            if result.get("errcode") == 0:
-                service_state = result.get("service_state")
-                self.ap.logger.info(f"成功查询到用户 '{user_id}' 的会话状态为: {service_state}")
-                return service_state
             else:
-                self.ap.logger.error(f"查询用户 '{user_id}' 会话状态API返回错误: {result}")
-                return -1
-        except Exception as e:
-            self.ap.logger.error(f"查询用户 '{user_id}' 会话状态时发生异常: {e}")
-            return -1
-
                 self.ap.logger.error(f"查询用户 '{user_id}' 会话状态API返回错误: {result}")
                 return -1
         except Exception as e:
