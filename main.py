@@ -52,7 +52,7 @@ class TransferToAgentPlugin(BasePlugin):
             self.ap.logger.error("查询会话状态失败：无法获取 access_token。")
             return -1
 
-        api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/get?access_token=  {token}"
+        api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/get?access_token={token}"
         payload = {"open_kfid": OPEN_KFID, "external_userid": user_id}
         try:
             async with httpx.AsyncClient() as client:
