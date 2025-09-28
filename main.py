@@ -114,7 +114,7 @@ class TransferToAgentPlugin(BasePlugin):
             ctx.prevent_default()
             return
 
-        api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token=  {token}"
+        api_url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/service_state/trans?access_token={token}"
         payload = {"open_kfid": OPEN_KFID, "external_userid": user_id, "service_state": 2}
         try:
             async with httpx.AsyncClient() as client:
