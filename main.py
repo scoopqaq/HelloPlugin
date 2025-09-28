@@ -1,5 +1,6 @@
 import httpx
 import time
+import datetime
 import logging
 from pkg.plugin.context import register, handler, BasePlugin, EventContext
 from pkg.plugin.events import PersonNormalMessageReceived
@@ -94,19 +95,22 @@ class TransferToAgentPlugin(BasePlugin):
             self.ap.logger.info(f"用户 '{formatted_user_id}' 状态为 {current_service_state}，AI不介入。")
             ctx.prevent_default()
             return
-        
         msg = ctx.event.text_message
-        if "转人工" in msg or "找客服" in msg or "[图片]"in msg:
+        if "转人工" in msg or "找客服"in msg:
             self.ap.logger.info(f"用户 '{formatted_user_id}' 请求转人工，执行转接...")
+            try:
+                await ctx.reply(message_chain=MessageChain([Plain("正在为您转接人工客服，请稍候...")]))
+            except Exception as e:
+                self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
             await self.transfer_to_human(ctx, formatted_user_id)
-        
+        elif "[图片]" in msg or "[Image]" in msg:
+            self.ap.logger.info(f"用户'{formatted_user_id}'发送了图片，自动进行转人工,执行转接...") 
+            try:
+                await ctx.reply(message_chain=MessageChain([Plain("智能客服无法处理文字以外的信息，已帮您转入人工服务，请稍等...")]))
+            except Exception as e:
+                self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
+            await self.transfer_to_human(ctx, formatted_user_id)
     async def transfer_to_human(self, ctx: EventContext, user_id: str):
-        """将用户会话转接给人工，并使用正确的 MessageChain 构造方式发送提示。"""
-        try:
-            # 【已更正！】使用 Plain 组件构造消息链
-            await ctx.reply(message_chain=MessageChain([Plain("正在为您转接人工客服，请稍候...")]))
-        except Exception as e:
-            self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
 
         token = await get_access_token()
         if not token:
