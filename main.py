@@ -20,26 +20,24 @@ access_token_cache = { "token": None, "expires_at": 0 }
 
 async def get_access_token():
     now = int(time.time())
-    if access_token_cache["token"] and access_token_cache["expires_at"] > now:
-        return access_token_cache["token"]
-    
+    token, exp = access_token_cache["token"], access_token_cache["expires_at"]
+    if token and exp > now:
+        logging.info("Access Token: use cached.")
+        return token
+
     logging.info("Access Token: Fetching new token...")
     url = f"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={WECOM_CORP_ID}&corpsecret={WECOM_SECRET}"
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            data = response.json()
-        if data.get("errcode") == 0:
-            token = data["access_token"]
-            access_token_cache["token"] = token
-            access_token_cache["expires_at"] = now + 7000
-            return token
-        else:
-            logging.error(f"Access Token: Failed to get token. Response: {data}")
-            return None
-    except Exception as e:
-        logging.error(f"Access Token: Exception occurred. {e}")
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        logging.info(f"gettoken response: {response.status_code} {response.text}")  # ← 新增
+        data = response.json()
+
+    if data.get("errcode") == 0:
+        access_token_cache["token"] = data["access_token"]
+        access_token_cache["expires_at"] = now + 7000
+        return data["access_token"]
+    else:
+        logging.error(f"gettoken failed: {data}")
         return None
 
 
