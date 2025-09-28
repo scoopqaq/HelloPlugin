@@ -96,7 +96,7 @@ class TransferToAgentPlugin(BasePlugin):
             return
         
         msg = ctx.event.text_message
-        if "转人工" in msg or "找客服" in msg:
+        if "转人工" in msg or "找客服" in msg or "[图片]"in msg:
             self.ap.logger.info(f"用户 '{formatted_user_id}' 请求转人工，执行转接...")
             await self.transfer_to_human(ctx, formatted_user_id)
         
