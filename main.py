@@ -1,6 +1,6 @@
 import httpx
 import time
-import datetime
+from datetime import datetime
 import logging
 from pkg.plugin.context import register, handler, BasePlugin, EventContext
 from pkg.plugin.events import PersonNormalMessageReceived
@@ -96,20 +96,37 @@ class TransferToAgentPlugin(BasePlugin):
             ctx.prevent_default()
             return
         msg = ctx.event.text_message
+        now = datetime.now()
+        t = now.time()
         if "转人工" in msg or "找客服"in msg:
-            self.ap.logger.info(f"用户 '{formatted_user_id}' 请求转人工，执行转接...")
-            try:
-                await ctx.reply(message_chain=MessageChain([Plain("正在为您转接人工客服，请稍候...")]))
-            except Exception as e:
-                self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
-            await self.transfer_to_human(ctx, formatted_user_id)
+            if  time(0,0) <= t <=time(8,30):
+                self.ap.logger.info(f"当前时间:{now.strftime('%Y-%m-%d %H:%M:%S')}，用户 '{formatted_user_id}' 请求转人工，执行转接...")
+                try:
+                    await ctx.reply(message_chain=MessageChain([Plain("人工客服在线时间为 每周一至周日 08:30-23:59，若有使用问题，您可以先留言，我们上线后会第一时间为您解答！")]))
+                except Exception as e:
+                    self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
+                await self.transfer_to_human(ctx,formatted_user_id)
+            else:
+                self.ap.logger.info(f"用户 '{formatted_user_id}' 请求转人工，执行转接...")
+                try:
+                    await ctx.reply(message_chain=MessageChain([Plain("正在为您转接人工客服，请稍候...")]))
+                except Exception as e:
+                    self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
+                await self.transfer_to_human(ctx, formatted_user_id)
         elif "[图片]" in msg or "[Image]" in msg:
-            self.ap.logger.info(f"用户'{formatted_user_id}'发送了图片，自动进行转人工,执行转接...") 
-            try:
-                await ctx.reply(message_chain=MessageChain([Plain("智能客服无法处理文字以外的信息，已帮您转入人工服务，请稍等...")]))
-            except Exception as e:
-                self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
-            await self.transfer_to_human(ctx, formatted_user_id)
+            if time(0,0) <=t <=time(8,30):
+                self.ap.logger.info(f"当前时间:{now.strftime('%Y-%m-%d %H:%M:%S')}，用户 '{formatted_user_id}' 请求转人工，执行转接...")
+                try:
+                    await ctx.reply(message_chain=MessageChain([Plain("智能客服暂不支持处理文字外的信息，且人工客服暂时未在线哦～人工客服在线时间为 每周一至周日 08:30-23:59，若有使用问题，您可以先留言，我们上线后会第一时间为您解答！")]))
+                except Exception as e:
+                    self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
+            else:
+                self.ap.logger.info(f"用户'{formatted_user_id}'发送了图片，自动进行转人工,执行转接...") 
+                try:
+                    await ctx.reply(message_chain=MessageChain([Plain("智能客服无法处理文字以外的信息，已帮您转入人工服务，请稍等...")]))
+                except Exception as e:
+                    self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
+                await self.transfer_to_human(ctx, formatted_user_id)
     async def transfer_to_human(self, ctx: EventContext, user_id: str):
 
         token = await get_access_token()
