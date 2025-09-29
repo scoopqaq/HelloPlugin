@@ -99,7 +99,7 @@ class TransferToAgentPlugin(BasePlugin):
         now = datetime.now()
         t = now.time()
         if "转人工" in msg or "找客服"in msg:
-            if  dtime(0,0) <= t <=dtime(8,30):
+            if  dtime(0,0) <= t <=dtime(20,30):
                 self.ap.logger.info(f"当前时间:{now.strftime('%Y-%m-%d %H:%M:%S')}，用户 '{formatted_user_id}' 请求转人工，执行转接...")
                 try:
                     await ctx.reply(message_chain=MessageChain([Plain("人工客服在线时间为 每周一至周日 08:30-23:59\n若有使用问题，您可以先留言，我们上线后会第一时间为您解答！")]))
