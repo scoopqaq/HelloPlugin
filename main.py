@@ -99,7 +99,7 @@ class TransferToAgentPlugin(BasePlugin):
         now = datetime.now()
         t = now.time()
         if "转人工" in msg or "找客服"in msg:
-            if  dtime(0,0) <= t <=dtime(8,30):
+            if  dtime(0,0) <= t <=dtime(15,30):
                 self.ap.logger.info(f"当前时间:{now.strftime('%Y-%m-%d %H:%M:%S')}，用户 '{formatted_user_id}' 请求转人工，执行转接...")
                 try:
                     await ctx.reply(message_chain=MessageChain([Plain("人工客服在线时间为 每周一至周日 08:30-23:59，若有使用问题，您可以先留言，我们上线后会第一时间为您解答！")]))
@@ -114,7 +114,7 @@ class TransferToAgentPlugin(BasePlugin):
                     self.ap.logger.error(f"使用ctx.reply发送消息失败: {e}，请检查API用法。")
                 await self.transfer_to_human(ctx, formatted_user_id)
         elif "[图片]" in msg or "[Image]" in msg:
-            if dtime(0,0) <=t <=dtime(8,30):
+            if dtime(0,0) <=t <=dtime(15,30):
                 self.ap.logger.info(f"当前时间:{now.strftime('%Y-%m-%d %H:%M:%S')}，用户 '{formatted_user_id}' 请求转人工，执行转接...")
                 try:
                     await ctx.reply(message_chain=MessageChain([Plain("智能客服暂不支持处理文字外的信息，且人工客服暂时未在线哦～人工客服在线时间为 每周一至周日 08:30-23:59，若有使用问题，您可以先留言，我们上线后会第一时间为您解答！")]))
