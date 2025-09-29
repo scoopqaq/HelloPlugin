@@ -1,6 +1,6 @@
 import httpx
 import time
-from datetime import datetime,time
+from datetime import datetime,time as dtime
 import logging
 from pkg.plugin.context import register, handler, BasePlugin, EventContext
 from pkg.plugin.events import PersonNormalMessageReceived
